@@ -34,6 +34,27 @@ for v2 (see `DECISIONS.md`).
 
 ---
 
+## Download (no Xcode needed)
+
+Grab the prebuilt app from the
+[**latest release**](https://github.com/guconstantino/3mfmacOSPreview/releases/latest):
+
+1. Download and unzip `MF3Preview-<version>-macos.zip`.
+2. Move **`MF3Preview.app` into `/Applications`** (required — Quick Look only
+   loads the extension from there).
+3. **Launch it once** so macOS registers the extension, then quit it.
+4. Select a `.3mf` in the Finder and press **Space**.
+
+> The release build is **ad-hoc signed and not notarized** (no paid Apple
+> Developer account), so on first launch macOS may block it: **System Settings →
+> Privacy & Security → Open Anyway**, or run
+> `xattr -dr com.apple.quarantine /Applications/MF3Preview.app`.
+
+Prefer to build and sign it yourself with your free Personal Team? See
+[Building in Xcode](#building-in-xcode) below.
+
+---
+
 ## Requirements
 
 - macOS (Apple Silicon or Intel) with **Xcode** installed.
