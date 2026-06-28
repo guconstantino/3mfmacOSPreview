@@ -5,6 +5,23 @@ A macOS **Quick Look Preview** extension. Press **SPACE** in the Finder on a
 already embedded in the file** by your slicer (PrusaSlicer, Bambu Studio, Orca,
 etc.).
 
+<p align="center">
+  <img src="docs/preview-example.png" alt="Embedded thumbnail of a .3mf file shown by the 3MF Preview Quick Look extension" width="420">
+</p>
+
+<p align="center"><sub>The embedded thumbnail the extension shows when you press Space on a <code>.3mf</code> file.</sub></p>
+
+<!--
+  TODO (nice-to-have): replace the image above with a real Finder Quick Look
+  screenshot or a short GIF of pressing Space on a .3mf file — far more
+  compelling for the README and for launch posts. To capture one:
+    1. Put a real .3mf (with a thumbnail) on the Desktop.
+    2. Select it in the Finder and press Space.
+    3. Screenshot the Quick Look window (Cmd+Shift+4, then Space to grab the
+       window), or record a GIF with QuickTime / Kap (https://getkap.co).
+  Avoid capturing a Finder window full of personal file names in the shot.
+-->
+
 > This is the missing piece next to
 > [ThumbHost3mf](https://github.com/DavidPhillipOster/ThumbHost3mf): that project
 > registers the **thumbnail** (the Finder icon, extension point
