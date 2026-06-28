@@ -194,11 +194,19 @@ Gatekeeper) exigiria a conta paga de **US$99/ano**. Decisão consciente de
   são os reais e que as duas extensões coexistem em pontos diferentes.
   **(commit)**
 
+- **Passo 9.** ✅ **Validação visual de ponta a ponta bem-sucedida.** Com o build
+  ad-hoc instalado em `/Applications`, o usuário selecionou um `.3mf` real
+  (`slide_puzzle+3x3.3mf`) no Finder e apertou **ESPAÇO**: o Quick Look exibiu a
+  imagem embutida em tamanho grande e em resolução cheia — comportamento da nossa
+  `QLPreviewingController`. Objetivo do v1 atingido.
+
 ### Notas de validação / pendências
 
-- A confirmação visual final (apertar **ESPAÇO** num `.3mf` real e ver a imagem)
-  é uma ação de GUI e deve ser feita interativamente — não é observável de forma
-  headless. Todos os pré-requisitos verificáveis por linha de comando passaram.
+- ✅ Confirmação visual final (ESPAÇO num `.3mf` real) feita e funcionando.
+- Observação de rigor: como o ThumbHost3mf (extensão de *thumbnail*) está
+  instalado, para uma prova 100% inequívoca de que o preview vem desta extensão
+  (e não de um upscale da miniatura) basta desinstalar temporariamente o
+  ThumbHost e repetir o ESPAÇO — o preview deve persistir.
 - O build instalado em `/Applications` foi assinado **ad-hoc** apenas para teste.
   Para uso estável, recompile no Xcode selecionando seu **Personal Team** (Apple
   ID grátis) em ambos os targets — mesmo bundle id, o LaunchServices apenas
