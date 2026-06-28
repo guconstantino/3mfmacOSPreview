@@ -1,0 +1,17 @@
+# macOS
+.DS_Store
+
+# Xcode build / user data
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcscmblueprint
+*.moved-aside
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# We DO commit the generated .xcodeproj so the project opens in Xcode without
+# requiring XcodeGen. project.yml remains the source of truth for regeneration.
