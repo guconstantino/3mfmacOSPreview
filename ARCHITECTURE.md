@@ -1,9 +1,9 @@
-# ARCHITECTURE.md — Como funciona e o que foi reaproveitado
+# ARCHITECTURE.md — How it works and what was reused
 
-## Visão geral
+## Overview
 
 ```
-Finder (ESPAÇO)
+Finder (SPACE)
    │
    ▼
 Quick Look  ──►  PreviewExtension.appex  (com.apple.quicklook.preview)
@@ -12,72 +12,74 @@ Quick Look  ──►  PreviewExtension.appex  (com.apple.quicklook.preview)
                PreviewViewController : NSViewController, QLPreviewingController
                       │  preparePreviewOfFile(at:)
                       ▼
-               ThumbnailCore.extractImage(from: url)  ──►  NSImage
-                      │                                       │
-                      │                                       ▼
-                      │                                 NSImageView (.scaleProportionallyUpOrDown)
+               ThumbnailCore.image(for: url)  ──►  NSImage
+                      │                                  │
+                      │                                  ▼
+                      │                            NSImageView (.scaleProportionallyUpOrDown)
                       ▼
         ┌─────────────┴───────────────┬───────────────────────────┐
         ▼                             ▼                           ▼
-   .3mf  (ZIP/OPC)            .gcode (texto)             .bgcode ("GCDE" binário)
-   MiniZip + Compression      base64 nos comentários     parser de blocos
+   .3mf  (ZIP/OPC)            .gcode (text)              .bgcode ("GCDE" binary)
+   MiniZip + Compression      base64 in comments         block parser
         │                             │                           │
         └─────────────► PNG/JPG/QOI ◄─┴───────────────────────────┘
                               │
                               ▼
-                    QOIDecoder (se "qoif")  →  CGImage  →  NSImage
+                    QOIDecoder (if "qoif")  →  CGImage  →  NSImage
 ```
 
-O mesmo `ThumbnailCore` é compilado **tanto no appex quanto no app host**, para
-que o app possa exibir um preview de teste sem precisar instalar a extensão.
+The same `ThumbnailCore` is compiled into **both the appex and the host app**, so
+the app can show a test preview without installing the extension.
 
-## Módulos do `ThumbnailCore` (Swift puro)
+## `ThumbnailCore` modules (pure Swift)
 
-| Arquivo | Responsabilidade | Derivado de (ThumbHost3mf) |
+| File | Responsibility | Derived from (ThumbHost3mf) |
 |---|---|---|
-| `ThumbnailExtractor.swift` | Despacha por extensão e devolve `NSImage` | `ThumbnailProvider.m`, `Thumbnail3MF.m`, `ThumbnailGCode.m` |
-| `MiniZip.swift` | Leitor mínimo de ZIP (EOCD, ZIP64, central dir, inflate via `Compression`) | `Unzip3MF.m` (minizip) |
-| `GCode.swift` | Acha e decodifica thumbnails base64 nos comentários do `.gcode` | `ThumbnailGCode.m` |
-| `BinaryGCode.swift` | Percorre blocos do container "GCDE" e extrai o bloco de thumbnail | `ThumbnailBinaryGCode.m` |
-| `QOIDecoder.swift` | Decodifica imagens QOI (`qoif`) para `CGImage` | `QOIFImageFromData.m` (port do qoi.h, MIT) |
+| `ThumbnailExtractor.swift` | Dispatches by extension and returns an `NSImage` | `ThumbnailProvider.m`, `Thumbnail3MF.m`, `ThumbnailGCode.m` |
+| `MiniZip.swift` | Minimal ZIP reader (EOCD, ZIP64, central dir, inflate via `Compression`) | `Unzip3MF.m` (minizip) |
+| `GCode.swift` | Finds and decodes base64 thumbnails in `.gcode` comments | `ThumbnailGCode.m` |
+| `BinaryGCode.swift` | Walks the "GCDE" container blocks and extracts the thumbnail block | `ThumbnailBinaryGCode.m` |
+| `QOIDecoder.swift` | Decodes QOI (`qoif`) images into a `CGImage` | `QOIFImageFromData.m` (port of qoi.h, MIT) |
 
-## O que foi reaproveitado (e como)
+## What was reused (and how)
 
-A extração é uma **reimplementação clean-room em Swift** a partir do
-*comportamento* do ThumbHost3mf (Apache-2.0). Em particular:
+The extraction is a **clean-room Swift re-implementation** based on the
+*behavior* of ThumbHost3mf (Apache-2.0). In particular:
 
-- **3MF** — abrir o `.3mf` como ZIP e procurar a imagem em `Metadata/…`. O
-  original lia `Metadata/thumbnail.png|jpg` e `Metadata/plate_1.png|jpg`. Aqui a
-  ordem de prioridade é: `thumbnail.png` → `plate_1.png` → `plate_1_small.png`
-  → `top_1.png` → primeiro `*.png` em `Metadata/`.
-- **gcode** — localizar o trecho entre `; thumbnail begin` e `; thumbnail end`,
-  juntar as linhas, remover o `; ` de prefixo e decodificar base64. Pode haver
-  vários tamanhos; escolhemos o de maior área.
-- **bgcode** — validar magic `GCDE` + versão 1, percorrer blocos lendo
-  `blockType`, `compressionType`, tamanhos e (se houver) checksum; o bloco
-  `blockType == 5` é a imagem (PNG/JPG/QOI).
-- **QOI** — porte direto do decoder de referência `qoi.h` (MIT) para Swift.
+- **3MF** — open the `.3mf` as a ZIP and look for the image under `Metadata/…`.
+  The original read `Metadata/thumbnail.png|jpg` and `Metadata/plate_1.png|jpg`.
+  Here the priority order is: `thumbnail.png` → `plate_1.png` →
+  `plate_1_small.png` → `top_1.png` → first `*.png` under `Metadata/`.
+- **gcode** — locate the region between `; thumbnail begin` and
+  `; thumbnail end`, join the lines, strip the `; ` prefix and base64-decode.
+  There can be several sizes; we pick the one with the largest area.
+- **bgcode** — validate the `GCDE` magic + version 1, walk the blocks reading
+  `blockType`, `compressionType`, sizes and (if present) checksum; block
+  `blockType == 5` is the image (PNG/JPG/QOI).
+- **QOI** — a direct port of the reference `qoi.h` decoder (MIT) to Swift.
 
-## MiniZip — detalhes
+## MiniZip — details
 
-Para um `.3mf` (OPC = ZIP), o `MiniZip`:
+For a `.3mf` (OPC = ZIP), `MiniZip`:
 
-1. Faz `mmap`/lê o arquivo e localiza o **End Of Central Directory (EOCD)**
-   buscando a assinatura `0x06054b50` a partir do fim.
-2. Se presente, segue o **ZIP64 EOCD locator** (`0x07064b50`) e o **ZIP64 EOCD**
-   (`0x06064b50`) para offsets/contagens de 64 bits.
-3. Itera as entradas do **central directory** (`0x02014b50`), casando o nome do
-   arquivo desejado (case-insensitive na busca por extensão `.png` no fallback).
-4. Lê o **local file header** (`0x04034b50`) da entrada e extrai os dados:
-   - método **0 (stored)** → cópia direta;
-   - método **8 (deflate)** → inflate via `Compression` (`COMPRESSION_ZLIB` em
-     modo raw/`-MAX_WBITS`).
+1. Memory-maps the file and locates the **End Of Central Directory (EOCD)** by
+   scanning backwards for the `0x06054b50` signature.
+2. If present, follows the **ZIP64 EOCD locator** (`0x07064b50`) and the **ZIP64
+   EOCD** (`0x06064b50`) for 64-bit offsets/counts.
+3. Iterates the **central directory** entries (`0x02014b50`), matching the wanted
+   file name (case-insensitive when falling back to a `.png` search).
+4. Reads the entry's **local file header** (`0x04034b50`) and extracts the data:
+   - method **0 (stored)** → direct copy;
+   - method **8 (deflate)** → inflate via `Compression` (`COMPRESSION_ZLIB` in
+     raw/`-MAX_WBITS` mode).
 
-Só precisamos de uma entrada pequena (a imagem), então não há streaming
-complexo: lê-se o necessário e descomprime em memória.
+We only need one small entry (the image), so there's no complex streaming: read
+what's needed and decompress in memory.
 
-## Por que não renderizar a malha 3D (v1)
+## Why not render the 3D mesh (v1)
 
-O objetivo do v1 é paridade de experiência com a miniatura embutida: o slicer já
-gerou uma boa imagem do plate. Renderizar a malha exigiria parser de
-`3D/3dmodel.model` (XML), triangulação e um renderizador — escopo do v2.
+The v1 goal is parity with the embedded thumbnail experience: the slicer already
+produced a good image of the plate. Rendering the mesh would require parsing
+`3D/3dmodel.model` (XML), triangulation and a renderer — that's v2 scope. See
+`DECISIONS.md` for the trade-offs (including why STL "just works" natively via
+Model I/O while 3MF does not).

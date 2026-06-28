@@ -1,44 +1,46 @@
-# 3MF Preview — Quick Look para `.3mf`, `.gcode` e `.bgcode`
+# 3MF Preview — Quick Look for `.3mf`, `.gcode` and `.bgcode`
 
-Extensão de **Quick Look Preview** para macOS. Ao apertar **ESPAÇO** no Finder
-sobre um arquivo `.3mf`, `.gcode` ou `.bgcode`, mostra **em tamanho grande a
-imagem (thumbnail) já embutida no arquivo** pelo slicer (PrusaSlicer, Bambu
-Studio, Orca, etc.).
+A macOS **Quick Look Preview** extension. Press **SPACE** in the Finder on a
+`.3mf`, `.gcode` or `.bgcode` file and it shows, **large, the thumbnail image
+already embedded in the file** by your slicer (PrusaSlicer, Bambu Studio, Orca,
+etc.).
 
-> É a peça que falta no [ThumbHost3mf](https://github.com/DavidPhillipOster/ThumbHost3mf):
-> aquele projeto registra a **miniatura** (ícone no Finder, ponto de extensão
-> `com.apple.quicklook.thumbnail`); este registra o **preview** (a janela grande
-> do ESPAÇO, ponto `com.apple.quicklook.preview`). Os dois podem coexistir.
+> This is the missing piece next to
+> [ThumbHost3mf](https://github.com/DavidPhillipOster/ThumbHost3mf): that project
+> registers the **thumbnail** (the Finder icon, extension point
+> `com.apple.quicklook.thumbnail`); this one registers the **preview** (the large
+> SPACE window, extension point `com.apple.quicklook.preview`). The two can
+> coexist.
 
-Escopo da v1: **apenas exibir a imagem embutida**. Renderização da malha 3D fica
-para a v2 (ver `DECISIONS.md`).
-
----
-
-## Pré-requisitos
-
-- macOS (Apple Silicon ou Intel) com **Xcode** instalado.
-- Uma **Apple ID** (a conta **grátis** / *Personal Team* basta — não é preciso a
-  conta paga de Apple Developer).
-- _(Opcional, só para regenerar o projeto)_ [XcodeGen](https://github.com/yonaskolb/XcodeGen):
-  `brew install xcodegen`. O `.xcodeproj` já vem commitado, então para apenas
-  compilar você **não** precisa do XcodeGen.
+Scope of v1: **only display the embedded image**. Rendering the 3D mesh is left
+for v2 (see `DECISIONS.md`).
 
 ---
 
-## Como compilar no Xcode
+## Requirements
 
-1. Abra `MF3Preview.xcodeproj` no Xcode.
-2. Selecione o target **MF3Preview** → aba **Signing & Capabilities**:
-   - Marque **Automatically manage signing**.
-   - Em **Team**, selecione seu **Personal Team** (seu nome / Apple ID grátis).
-   - Faça o mesmo no target **PreviewExtension** (use o mesmo Team).
-   > Com Personal Team o `Bundle Identifier` precisa ser único na sua conta.
-   > Se o Xcode reclamar, troque o prefixo `com.guconstantino` por algo seu em
-   > ambos os targets (mantendo o appex como `…<app>.PreviewExtension`).
-3. Selecione o scheme **MF3Preview** e **Product → Build** (⌘B).
+- macOS (Apple Silicon or Intel) with **Xcode** installed.
+- An **Apple ID** (the **free** / *Personal Team* account is enough — a paid
+  Apple Developer account is not required).
+- _(Optional, only to regenerate the project)_ [XcodeGen](https://github.com/yonaskolb/XcodeGen):
+  `brew install xcodegen`. The `.xcodeproj` is already committed, so to just
+  build it you do **not** need XcodeGen.
 
-Pela linha de comando (debug):
+---
+
+## Building in Xcode
+
+1. Open `MF3Preview.xcodeproj` in Xcode.
+2. Select the **MF3Preview** target → **Signing & Capabilities** tab:
+   - Check **Automatically manage signing**.
+   - In **Team**, select your **Personal Team** (your name / free Apple ID).
+   - Do the same for the **PreviewExtension** target (use the same Team).
+   > With a Personal Team the `Bundle Identifier` must be unique to your account.
+   > If Xcode complains, change the `com.guconstantino` prefix to something of
+   > your own in both targets (keeping the appex as `…<app>.PreviewExtension`).
+3. Select the **MF3Preview** scheme and **Product → Build** (⌘B).
+
+From the command line (debug):
 
 ```bash
 xcodebuild -project MF3Preview.xcodeproj -scheme MF3Preview \
@@ -47,105 +49,105 @@ xcodebuild -project MF3Preview.xcodeproj -scheme MF3Preview \
 
 ---
 
-## Como instalar (OBRIGATÓRIO ir para `/Applications`)
+## Installing (MUST go into `/Applications`)
 
-O macOS só ativa a extensão de Quick Look se o app hospedeiro estiver em
-**`/Applications`** (ou uma subpasta dela) — **não** em `~/Applications`,
-Downloads ou Desktop.
+macOS only activates the Quick Look extension if the host app lives in
+**`/Applications`** (or a subfolder of it) — **not** in `~/Applications`,
+Downloads or Desktop.
 
-1. No Xcode: **Product → Archive** (ou copie o `.app` da pasta de build).
-2. Copie **`MF3Preview.app` para `/Applications`**.
-3. **Rode o app uma vez** (duplo clique). Isso registra a extensão no sistema.
-   Pode fechar em seguida — ele só precisa rodar uma vez para registrar.
-4. _(Opcional)_ Confirme em **Ajustes do Sistema → Geral → Itens de início e
-   Extensões → Quick Look** que **3MF Preview** aparece e está ativado.
+1. In Xcode: **Product → Archive** (or copy the `.app` from the build folder).
+2. Copy **`MF3Preview.app` into `/Applications`**.
+3. **Launch the app once** (double-click). This registers the extension with the
+   system. You can close it afterwards — it only needs to run once to register.
+4. _(Optional)_ Confirm in **System Settings → General → Login Items &
+   Extensions → Quick Look** that **3MF Preview** appears and is enabled.
 
-### Passo do Gatekeeper (para outros usuários / máquinas)
+### Gatekeeper step (for other users / machines)
 
-Como o app **não é notarizado** (a notarização exige a conta paga), ao abrir em
-outra máquina o macOS pode bloquear com "não foi possível verificar o
-desenvolvedor". Para liberar (passo único):
+Because the app is **not notarized** (notarization requires a paid account),
+opening it on another machine may trigger a "cannot verify the developer" block.
+To allow it (one-time step):
 
-> **Ajustes do Sistema → Privacidade e Segurança** → role até a mensagem sobre o
-> app bloqueado → **"Abrir Mesmo Assim"** → confirme.
+> **System Settings → Privacy & Security** → scroll to the message about the
+> blocked app → **"Open Anyway"** → confirm.
 
-Na sua própria máquina (a que assinou com seu Personal Team) isso normalmente
-nem aparece.
+On your own machine (the one that signed it with your Personal Team) this usually
+doesn't even appear.
 
 ---
 
-## Como testar
+## Testing
 
-1. Baixe **localmente** um `.3mf` real **que tenha thumbnail** (a maioria dos
-   exportados por PrusaSlicer/Bambu/Orca a partir de ~2021 tem).
-   > ⚠️ Garanta que o arquivo está **baixado de verdade** — não um item de
-   > **0 KB** ainda na nuvem do iCloud. Itens não baixados não têm conteúdo para
-   > o Quick Look ler.
-2. No Finder, selecione o arquivo e aperte **ESPAÇO**. Deve aparecer a imagem
-   embutida em tamanho grande.
+1. Download a real `.3mf` **locally** that **has a thumbnail** (most files
+   exported by PrusaSlicer/Bambu/Orca since ~2021 do).
+   > ⚠️ Make sure the file is **actually downloaded** — not a **0 KB** iCloud
+   > placeholder. Non-downloaded items have no content for Quick Look to read.
+2. In the Finder, select the file and press **SPACE**. The embedded image should
+   appear, large.
 
-### Se o preview não aparecer
+### If the preview doesn't show up
 
-Reinicie o cache do Quick Look e o Finder:
+Reset the Quick Look cache and the Finder:
 
 ```bash
 qlmanage -r && qlmanage -r cache && killall Finder
 ```
 
-Você também pode forçar um preview por linha de comando para depurar:
+You can also force a preview from the command line to debug:
 
 ```bash
-qlmanage -p /caminho/para/arquivo.3mf
+qlmanage -p /path/to/file.3mf
 ```
 
-E listar as extensões de Quick Look que o sistema enxerga:
+And list the Quick Look preview extensions the system sees:
 
 ```bash
 pluginkit -mAvvv -p com.apple.quicklook.preview | grep -i mf3
 ```
 
-Checklist de problemas comuns:
-- O `.app` **não** está em `/Applications` → mova e rode-o de novo.
-- O app nunca foi aberto após instalar → abra uma vez.
-- O `.3mf` não tem thumbnail embutido, ou é um item de iCloud não baixado.
-- Cache velho → rode os comandos `qlmanage -r …` acima.
+Common-problem checklist:
+- The `.app` is **not** in `/Applications` → move it and launch it again.
+- The app was never opened after installing → open it once.
+- The `.3mf` has no embedded thumbnail, or it's a non-downloaded iCloud item.
+- Stale cache → run the `qlmanage -r …` commands above.
 
 ---
 
-## Tipos suportados
+## Supported types
 
-| Extensão | Origem do thumbnail | Formatos de imagem |
+| Extension | Thumbnail source | Image formats |
 |---|---|---|
-| `.3mf`   | imagem em `Metadata/…` dentro do ZIP/OPC | PNG (JPG/QOI também aceitos) |
-| `.gcode` | PNG em base64 nos comentários | PNG (JPG/QOI também aceitos) |
-| `.bgcode`| bloco de thumbnail no container "GCDE" | PNG / JPG / QOI |
+| `.3mf`   | image under `Metadata/…` inside the ZIP/OPC | PNG (JPG/QOI also accepted) |
+| `.gcode` | base64 PNG in the comments | PNG (JPG/QOI also accepted) |
+| `.bgcode`| thumbnail block in the "GCDE" container | PNG / JPG / QOI |
 
-Prioridade dos caminhos no `.3mf`: `Metadata/thumbnail.png` →
+Path priority inside the `.3mf`: `Metadata/thumbnail.png` →
 `Metadata/plate_1.png` → `Metadata/plate_1_small.png` → `Metadata/top_1.png` →
-primeiro `*.png` em `Metadata/`.
+first `*.png` under `Metadata/`.
 
 ---
 
-## Distribuição (planejada para a v2 — ainda não implementada)
+## Distribution (planned for v2 — not implemented yet)
 
-Sem conta paga de Apple Developer, o caminho grátis é um **Homebrew Tap próprio**
-com o `.app` não-notarizado:
+Without a paid Apple Developer account, the free path is a **self-hosted
+Homebrew tap** with the non-notarized `.app`:
 
 ```bash
-# (planejado, ainda não existe)
+# (planned, does not exist yet)
 brew tap guconstantino/3mfpreview
 brew install --cask 3mf-preview
 ```
 
-…mais o **passo único do Gatekeeper** acima. A experiência sem fricção
-(notarizada) exigiria a conta paga de US$99/ano — decisão consciente de adiar,
-registrada em `DECISIONS.md` (seção 8).
+…plus the **one-time Gatekeeper step** above. The frictionless (notarized)
+experience would require the $99/year paid account — a conscious decision to
+defer, recorded in `DECISIONS.md` (section 8).
 
 ---
 
-## Licença e créditos
+## License and credits
 
-[Apache-2.0](LICENSE). A lógica de extração de thumbnails é uma reimplementação
-em Swift derivada do [ThumbHost3mf](https://github.com/DavidPhillipOster/ThumbHost3mf)
-de **David Phillip Oster** (Apache-2.0). O decoder QOI é um port do `qoi.h` de
-Dominic Szablewski (MIT). Ver `NOTICE` e `ARCHITECTURE.md`.
+[Apache-2.0](LICENSE). The thumbnail-extraction logic is a Swift
+re-implementation derived from
+[ThumbHost3mf](https://github.com/DavidPhillipOster/ThumbHost3mf) by
+**David Phillip Oster** (Apache-2.0). The QOI decoder is a port of `qoi.h` by
+Dominic Szablewski (MIT). See `NOTICE` and `ARCHITECTURE.md`.

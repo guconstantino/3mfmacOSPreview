@@ -1,215 +1,242 @@
-# DECISIONS.md — Registro de decisões técnicas e log de desenvolvimento
+# DECISIONS.md — Technical decision record and development log
 
-Este documento é a fonte de verdade das decisões de projeto e um diário, em
-ordem, dos passos executados. Cada decisão tem **contexto**, **decisão** e
-**porquê**.
-
----
-
-## 0. Objetivo do projeto
-
-Criar uma **Quick Look Preview Extension** para macOS que, ao apertar **ESPAÇO**
-no Finder sobre um arquivo `.3mf`, `.gcode` ou `.bgcode`, mostre **em tamanho
-grande a imagem (thumbnail) já embutida no arquivo**.
-
-Diferença em relação ao app de referência [ThumbHost3mf](https://github.com/DavidPhillipOster/ThumbHost3mf):
-aquele registra apenas o ponto de extensão `com.apple.quicklook.thumbnail`
-(o ícone/miniatura no Finder). Por isso a tecla ESPAÇO não mostra preview.
-O que falta — e é o que este projeto entrega — é uma extensão no ponto
-`com.apple.quicklook.preview`.
+This document is the source of truth for design decisions and a chronological
+diary of the steps taken. Each decision has **context**, **decision** and
+**rationale**.
 
 ---
 
-## 1. Projeto novo standalone (não um fork)
+## 0. Project goal
 
-**Decisão:** Projeto novo e independente neste repositório, reaproveitando a
-*lógica* de extração do ThumbHost3mf, não um fork dele.
+Build a macOS **Quick Look Preview Extension** that, when you press **SPACE** in
+the Finder on a `.3mf`, `.gcode` or `.bgcode` file, shows **the thumbnail image
+already embedded in the file, large**.
 
-**Porquê:** O ThumbHost3mf é um app AppKit Objective-C com um target de
-*thumbnail*. Queremos um app enxuto, em Swift, com um target de *preview*.
-Forkar traria muito código e configuração que não usaríamos. Reaproveitar só a
-lógica de extração mantém o projeto pequeno e auditável.
-
----
-
-## 2. Reimplementar em Swift puro (opção b), não portar o C/minizip (opção a)
-
-**Decisão:** Reimplementar a extração em **Swift puro**, sem código C
-vendorizado e **sem dependências externas** (sem SPM/CocoaPods).
-
-**Porquê:**
-- A única parte que precisa de "unzip" é o `.3mf` (que é um ZIP no formato OPC).
-  Os formatos `.gcode` (texto com thumbnail PNG em base64 nos comentários) e
-  `.bgcode` (binário "GCDE" com blocos; thumbnails podem ser PNG/JPG/QOI) exigem
-  parsers próprios de qualquer forma — minizip não ajuda neles.
-- Para o ZIP do `.3mf`, basta um **leitor mínimo de ZIP** (localiza uma entrada
-  pelo nome, lê o cabeçalho local e descomprime) usando o framework
-  **`Compression`** da Apple para o DEFLATE. Inclui suporte a **ZIP64** (há
-  `.3mf` reais em ZIP64, conforme histórico do ThumbHost3mf v1.7).
-- Resultado: projeto 100% Swift, sem etapa de build de C, sem framework
-  embarcado para assinar, appex menor — exatamente o "mantenha SIMPLES" do v1.
-
-**Alternativa considerada:** `ZIPFoundation` via SPM. Rejeitada para o v1 por
-adicionar resolução de pacote em build e um binário extra a assinar dentro do
-appex, sem ganho real para ler um único arquivo pequeno de um OPC.
-
-A lógica reimplementada deriva, em clean-room, do comportamento dos fontes
-Objective-C/C do ThumbHost3mf (`Thumbnail3MF`, `ThumbnailGCode`,
-`ThumbnailBinaryGCode`, `Unzip3MF`, `QOIFImageFromData`). Ver `ARCHITECTURE.md`.
+Difference from the reference app
+[ThumbHost3mf](https://github.com/DavidPhillipOster/ThumbHost3mf): that one only
+registers the `com.apple.quicklook.thumbnail` extension point (the Finder
+icon/thumbnail). That's why SPACE shows no preview. What's missing — and what
+this project delivers — is an extension at the `com.apple.quicklook.preview`
+point.
 
 ---
 
-## 3. Licenciamento e atribuição (Apache-2.0)
+## 1. New standalone project (not a fork)
 
-**Decisão:** Manter `LICENSE` Apache-2.0 e um `NOTICE` creditando
-**David Phillip Oster** (ThumbHost3mf). O decoder QOI credita também a
-implementação de referência de Dominic Szablewski (MIT).
+**Decision:** A new, standalone project in this repository that reuses the
+*logic* of ThumbHost3mf's extraction, rather than a fork of it.
 
-**Porquê:** ThumbHost3mf é Apache-2.0; reusar sua lógica exige preservar
-atribuição e aviso de licença. É o correto e exigido pela seção 4 da Apache-2.0.
-
----
-
-## 4. Preview view-based (`QLPreviewingController`), não data-based
-
-**Decisão:** Usar uma `NSViewController` que adota `QLPreviewingController` e
-implementa `preparePreviewOfFile(at:)`, exibindo a imagem numa `NSImageView`
-com `imageScaling = .scaleProportionallyUpOrDown`. Sem storyboard (view criada
-programaticamente em `loadView`).
-
-**Porquê:** É o caminho mais direto e confiável para "só mostrar a imagem
-grande" (escopo v1). Evita incertezas da API data-based (`QLPreviewReply`) e não
-precisa de storyboard. Renderizar a malha 3D fica para o v2.
+**Rationale:** ThumbHost3mf is an AppKit Objective-C app with a *thumbnail*
+target. We want a lean Swift app with a *preview* target. Forking would carry a
+lot of code and configuration we wouldn't use. Reusing only the extraction logic
+keeps the project small and auditable.
 
 ---
 
-## 5. UTIs e ponto de extensão
+## 2. Re-implement in pure Swift (option b), not port the C/minizip (option a)
 
-**Decisão:**
+**Decision:** Re-implement extraction in **pure Swift**, with no vendored C and
+**no external dependencies** (no SPM/CocoaPods).
+
+**Rationale:**
+- The only part that needs "unzip" is the `.3mf` (a ZIP in the OPC format). The
+  `.gcode` (text with a base64 PNG thumbnail in the comments) and `.bgcode`
+  (binary "GCDE" container with blocks; thumbnails may be PNG/JPG/QOI) formats
+  need their own parsers anyway — minizip doesn't help there.
+- For the `.3mf` ZIP, a **minimal ZIP reader** suffices (locate an entry by name,
+  read the local header and decompress) using Apple's **`Compression`** framework
+  for DEFLATE. It includes **ZIP64** support (real `.3mf` files in ZIP64 exist,
+  per the ThumbHost3mf v1.7 history).
+- Result: a 100% Swift project, no C build step, no embedded framework to sign, a
+  smaller appex — exactly the v1 "keep it simple" goal.
+
+**Alternative considered:** `ZIPFoundation` via SPM. Rejected for v1 because it
+adds package resolution at build time and an extra binary to sign inside the
+appex, with no real gain for reading a single small file from an OPC.
+
+The re-implemented logic derives, clean-room, from the *behavior* of
+ThumbHost3mf's Objective-C/C sources (`Thumbnail3MF`, `ThumbnailGCode`,
+`ThumbnailBinaryGCode`, `Unzip3MF`, `QOIFImageFromData`). See `ARCHITECTURE.md`.
+
+---
+
+## 3. Licensing and attribution (Apache-2.0)
+
+**Decision:** Keep the `LICENSE` Apache-2.0 and a `NOTICE` crediting
+**David Phillip Oster** (ThumbHost3mf). The QOI decoder also credits Dominic
+Szablewski's reference implementation (MIT).
+
+**Rationale:** ThumbHost3mf is Apache-2.0; reusing its logic requires preserving
+attribution and the license notice. It's the right thing to do and required by
+section 4 of Apache-2.0.
+
+---
+
+## 4. View-based preview (`QLPreviewingController`), not data-based
+
+**Decision:** Use an `NSViewController` that adopts `QLPreviewingController` and
+implements `preparePreviewOfFile(at:)`, showing the image in an `NSImageView`
+with `imageScaling = .scaleProportionallyUpOrDown`. No storyboard (view created
+programmatically in `loadView`).
+
+**Rationale:** It's the most direct, reliable path to "just show the image large"
+(v1 scope). It avoids the uncertainties of the data-based API (`QLPreviewReply`)
+and needs no storyboard. Rendering the 3D mesh is left for v2.
+
+---
+
+## 5. UTIs and extension point
+
+**Decision:**
 - `NSExtensionPointIdentifier = com.apple.quicklook.preview`.
 - `QLSupportedContentTypes = [com.turbozen.3mf, com.turbozen.gcode,
   com.turbozen.bgcode]`.
-- Declarar esses três como **`UTImportedTypeDeclarations`** (tipos *importados*),
-  mapeando as extensões `3mf`/`gcode`/`bgcode`, pois os identificadores
-  `com.turbozen.*` pertencem ao autor original (TurboZen / David Oster).
+- Declare those three as **`UTImportedTypeDeclarations`** (*imported* types),
+  mapping the `3mf`/`gcode`/`bgcode` extensions, since the `com.turbozen.*`
+  identifiers belong to the original author (TurboZen / David Oster).
 
-**Porquê:** `.3mf`/`.gcode`/`.bgcode` não têm UTI de sistema da Apple. Reusar os
-identificadores `com.turbozen.*` (os mesmos do ThumbHost3mf) mantém
-compatibilidade: se o ThumbHost3mf estiver instalado, ambos falam do mesmo tipo;
-se não estiver, nossa declaração *imported* serve de fallback e o Quick Look
-ainda casa os arquivos pela extensão.
-
----
-
-## 6. Sandbox e assinatura (Apple ID grátis / Personal Team)
-
-**Decisão:**
-- App e appex com **App Sandbox** habilitado; entitlement de leitura do arquivo
-  selecionado (`com.apple.security.files.user-selected.read-only`). O Quick Look
-  concede ao appex acesso de leitura ao arquivo sob preview.
-- **Assinatura local com Personal Team (Apple ID grátis)**, assinatura
-  automática no Xcode. **Sem notarização** (exige conta paga de US$99/ano).
-
-**Porquê:** O usuário não tem conta paga de Apple Developer. Um Personal Team
-grátis assina e roda localmente sem problemas para uso pessoal. A ausência de
-notarização significa que **outros** usuários precisarão do passo único do
-Gatekeeper ("Abrir Mesmo Assim") — documentado no README.
-
-**Consequência consciente (adiada):** distribuição sem fricção (notarizada)
-exigiria a conta paga. Decidimos adiar (ver seção 8).
+**Rationale:** `.3mf`/`.gcode`/`.bgcode` have no Apple system UTI. Reusing the
+`com.turbozen.*` identifiers (the same ones ThumbHost3mf uses) keeps things
+compatible: if ThumbHost3mf is installed, both talk about the same type; if it
+isn't, our *imported* declaration acts as a fallback and Quick Look still matches
+the files by extension.
 
 ---
 
-## 7. Geração do projeto Xcode via XcodeGen
+## 6. Sandbox and signing (free Apple ID / Personal Team)
 
-**Decisão:** Descrever os targets em `project.yml` (XcodeGen) e **commitar também
-o `.xcodeproj` gerado**. `project.yml` é a fonte de verdade; o `.xcodeproj`
-commitado permite abrir no Xcode sem instalar o XcodeGen.
+**Decision:**
+- App and appex with **App Sandbox** enabled; read entitlement for the selected
+  file (`com.apple.security.files.user-selected.read-only`). Quick Look grants
+  the appex read access to the file under preview.
+- **Local signing with a Personal Team (free Apple ID)**, automatic signing in
+  Xcode. **No notarization** (requires the $99/year paid account).
 
-**Porquê:** Escrever um `.pbxproj` à mão para app + appex (com embedding,
-entitlements, Info.plists e build settings) é frágil e propenso a erro.
-O XcodeGen torna isso declarativo e reprodutível. Commitar o `.xcodeproj` evita
-exigir a ferramenta de quem só quer abrir e compilar.
+**Rationale:** The user has no paid Apple Developer account. A free Personal Team
+signs and runs locally without issues for personal use. The lack of notarization
+means **other** users will need the one-time Gatekeeper step ("Open Anyway") —
+documented in the README.
 
----
-
-## 8. Distribuição (v2 — apenas planejado, NÃO implementado agora)
-
-**Plano:** Sem conta paga, o caminho grátis é um **Homebrew TAP próprio** com o
-`.app` **não-assinado/não-notarizado**: o usuário faz `brew tap guconstantino/...`
-e `brew install --cask ...`, mais o passo único do Gatekeeper.
-
-**Trade-off registrado:** A experiência "sem fricção" (notarizada, sem aviso do
-Gatekeeper) exigiria a conta paga de **US$99/ano**. Decisão consciente de
-**adiar** a notarização. Não montaremos o tap no v1.
+**Conscious (deferred) consequence:** frictionless (notarized) distribution would
+require the paid account. We chose to defer it (see section 8).
 
 ---
 
-## 9. Escopo v1 (mantenha SIMPLES)
+## 7. Xcode project generation via XcodeGen
 
-- Mostrar **somente** a imagem embutida, em tamanho grande, ao apertar ESPAÇO.
-- **Não** renderizar a malha 3D (v2).
-- Prioridade dos caminhos da imagem dentro do ZIP do `.3mf`:
+**Decision:** Describe the targets in `project.yml` (XcodeGen) and **also commit
+the generated `.xcodeproj`**. `project.yml` is the source of truth; the committed
+`.xcodeproj` lets it open in Xcode without installing XcodeGen.
+
+**Rationale:** Hand-writing a `.pbxproj` for an app + appex (with embedding,
+entitlements, Info.plists and build settings) is fragile and error-prone.
+XcodeGen makes it declarative and reproducible. Committing the `.xcodeproj` avoids
+requiring the tool from anyone who just wants to open and build.
+
+---
+
+## 8. Distribution (v2 — planned only, NOT implemented yet)
+
+**Plan:** Without a paid account, the free path is a **self-hosted Homebrew tap**
+with the **unsigned/non-notarized** `.app`: the user runs
+`brew tap guconstantino/...` and `brew install --cask ...`, plus the one-time
+Gatekeeper step.
+
+**Recorded trade-off:** The "frictionless" experience (notarized, no Gatekeeper
+warning) would require the **$99/year** paid account. Conscious decision to
+**defer** notarization. We won't set up the tap in v1.
+
+---
+
+## 9. v1 scope (keep it simple)
+
+- Show **only** the embedded image, large, on SPACE.
+- **Do not** render the 3D mesh (v2).
+- Image path priority inside the `.3mf` ZIP:
   1. `Metadata/thumbnail.png` (PrusaSlicer)
   2. `Metadata/plate_1.png` (Bambu/Orca)
   3. `Metadata/plate_1_small.png`
   4. `Metadata/top_1.png`
-  5. fallback: o 1º `*.png` dentro de `Metadata/`
-- `.gcode`: PNG em base64 nos comentários (`; thumbnail begin` … `; thumbnail end`).
-- `.bgcode`: bloco de thumbnail no container binário "GCDE" (PNG/JPG/QOI).
+  5. fallback: the first `*.png` under `Metadata/`
+- `.gcode`: base64 PNG in the comments (`; thumbnail begin` … `; thumbnail end`).
+- `.bgcode`: thumbnail block in the binary "GCDE" container (PNG/JPG/QOI).
 
 ---
 
-## LOG DE DESENVOLVIMENTO (ordem cronológica)
+## 10. 3D mesh rendering and other formats (STL/OBJ/PLY) — investigated, deferred
 
-- **Passo 1.** Clonado o repo vazio `guconstantino/3mfmacOSPreview` e, para
-  estudo, o `DavidPhillipOster/ThumbHost3mf`. Lidos os fontes de extração
+**Context:** Could we make `.3mf` rotate like the system's native STL preview,
+and could we add STL/OBJ/PLY?
+
+**Findings (verified on-device):**
+- macOS previews STL/OBJ/USDZ natively because Apple's **Model I/O** imports
+  them and **SceneKit** renders them. `MDLAsset.canImportFileExtension` returns
+  YES for `stl`, `obj`, `ply`, `usd`, `usdz`, `abc` — and **NO for `3mf`** (also
+  no `gltf`/`dae`).
+- Therefore STL/OBJ/PLY would be nearly free (Model I/O + a SceneKit `SCNView`
+  with `allowsCameraControl`), but the system already previews STL, so the value
+  is limited.
+- A rotatable `.3mf` mesh is feasible but requires **writing our own 3MF mesh
+  parser** (read `3D/3dmodel.model` XML from the OPC zip: vertices, triangles,
+  component/build transforms, units), then feeding SceneKit. SceneKit gives the
+  interactive rotation for free; the parser is the bulk of the work.
+
+**Trade-off:** the embedded thumbnail is colorful and arranged by the slicer;
+a raw mesh render is monochrome geometry but rotatable and reflects the true
+geometry. A mesh-primary approach with the embedded thumbnail as fallback would
+be the way, plus a size/triangle guard for the sandboxed appex.
+
+**Decision:** **Deferred.** v1 already meets its goal with the embedded image,
+which covers the common case (modern slicer files ship a good thumbnail). Recorded
+here in case it's picked up later.
+
+---
+
+## DEVELOPMENT LOG (chronological)
+
+- **Step 1.** Cloned the empty repo `guconstantino/3mfmacOSPreview` and, for
+  study, `DavidPhillipOster/ThumbHost3mf`. Read the extraction sources
   (`Thumbnail3MF.m`, `ThumbnailGCode.m`, `ThumbnailBinaryGCode.m`, `Unzip3MF.h`,
-  `QOIFImageFromData.m`) e o `Info.plist` do thumbnail.
-- **Passo 2.** Adicionados `LICENSE` (Apache-2.0), `NOTICE` (atribuição a David
-  Oster + MIT do QOI), `.gitignore`.
-- **Passo 3.** Criados `DECISIONS.md` (este arquivo), `README.md` e
-  `ARCHITECTURE.md` com o plano. **(commit deste checkpoint)**
-- **Passo 4.** Implementado o `ThumbnailCore` em Swift puro (`QOIDecoder`,
-  `MiniZip`, `GCode`, `BinaryGCode`, `ThumbnailExtractor`). Validado com `swiftc`
-  contra fixtures gerados (`.3mf` em Deflate e `.gcode` com base64): ambos
-  extraíram o PNG embutido corretamente. **(commit)**
-- **Passo 5.** Criada a extensão `PreviewExtension` (`QLPreviewingController` +
+  `QOIFImageFromData.m`) and the thumbnail `Info.plist`.
+- **Step 2.** Added `LICENSE` (Apache-2.0), `NOTICE` (attribution to David Oster
+  + the QOI MIT notice), `.gitignore`.
+- **Step 3.** Created `DECISIONS.md` (this file), `README.md` and
+  `ARCHITECTURE.md` with the plan. **(checkpoint commit)**
+- **Step 4.** Implemented `ThumbnailCore` in pure Swift (`QOIDecoder`, `MiniZip`,
+  `GCode`, `BinaryGCode`, `ThumbnailExtractor`). Validated with `swiftc` against
+  generated fixtures (a Deflate `.3mf` and a base64 `.gcode`): both extracted the
+  embedded PNG correctly. **(commit)**
+- **Step 5.** Created the `PreviewExtension` (`QLPreviewingController` +
   `preparePreviewOfFile(at:)` + `NSImageView` `.scaleProportionallyUpOrDown`),
-  o app host SwiftUI `MF3Preview` (com um "Open File…" de teste), os
-  `Info.plist`/entitlements e o `project.yml`. **(commit)**
-- **Passo 6.** `xcodegen generate` + `xcodebuild` (Debug, sem assinatura):
-  **BUILD SUCCEEDED**. O `.appex` é embarcado em `Contents/PlugIns/` e validado;
-  os `Info.plist` processados resolvem o principal class
-  (`PreviewExtension.PreviewViewController`) e os `QLSupportedContentTypes`.
-- **Passo 7.** Build Release com **assinatura ad-hoc** (`-`) só para validação
-  local; entitlements de sandbox aplicados. Instalado em
-  `/Applications/MF3Preview.app` e registrado (`lsregister`/`pluginkit`).
-  `pluginkit -m -p com.apple.quicklook.preview` lista a nossa extensão.
-- **Passo 8.** Validação de integração headless: `mdls` mostra que um `.3mf`
-  resolve para `kMDItemContentType = com.turbozen.3mf` — o mesmo UTI que a
-  extensão declara, então o Quick Look roteará o preview para ela. Observação:
-  `lsregister -dump` revelou que o **ThumbHost3mf já está instalado** nesta
-  máquina (extensão de *thumbnail*), confirmando que os UTIs `com.turbozen.*`
-  são os reais e que as duas extensões coexistem em pontos diferentes.
-  **(commit)**
+  the SwiftUI host app `MF3Preview` (with an "Open File…" tester), the
+  `Info.plist`/entitlements and the `project.yml`. **(commit)**
+- **Step 6.** `xcodegen generate` + `xcodebuild` (Debug, no signing):
+  **BUILD SUCCEEDED**. The `.appex` is embedded in `Contents/PlugIns/` and
+  validated; the processed `Info.plist`s resolve the principal class
+  (`PreviewExtension.PreviewViewController`) and the `QLSupportedContentTypes`.
+- **Step 7.** Release build with **ad-hoc signing** (`-`) for local validation
+  only; sandbox entitlements applied. Installed into
+  `/Applications/MF3Preview.app` and registered (`lsregister`/`pluginkit`).
+  `pluginkit -m -p com.apple.quicklook.preview` lists our extension.
+- **Step 8.** Headless integration validation: `mdls` shows that a `.3mf`
+  resolves to `kMDItemContentType = com.turbozen.3mf` — the same UTI the
+  extension declares, so Quick Look will route the preview to it. Note:
+  `lsregister -dump` revealed that **ThumbHost3mf is already installed** on this
+  machine (a *thumbnail* extension), confirming the `com.turbozen.*` UTIs are the
+  real ones and that the two extensions coexist at different points. **(commit)**
+- **Step 9.** ✅ **End-to-end visual validation succeeded.** With the ad-hoc
+  build installed in `/Applications`, the user selected a real `.3mf`
+  (`slide_puzzle+3x3.3mf`) in the Finder and pressed **SPACE**: Quick Look showed
+  the embedded image large and at full resolution — the behavior of our
+  `QLPreviewingController`. v1 goal achieved.
 
-- **Passo 9.** ✅ **Validação visual de ponta a ponta bem-sucedida.** Com o build
-  ad-hoc instalado em `/Applications`, o usuário selecionou um `.3mf` real
-  (`slide_puzzle+3x3.3mf`) no Finder e apertou **ESPAÇO**: o Quick Look exibiu a
-  imagem embutida em tamanho grande e em resolução cheia — comportamento da nossa
-  `QLPreviewingController`. Objetivo do v1 atingido.
+### Validation notes / open items
 
-### Notas de validação / pendências
-
-- ✅ Confirmação visual final (ESPAÇO num `.3mf` real) feita e funcionando.
-- Observação de rigor: como o ThumbHost3mf (extensão de *thumbnail*) está
-  instalado, para uma prova 100% inequívoca de que o preview vem desta extensão
-  (e não de um upscale da miniatura) basta desinstalar temporariamente o
-  ThumbHost e repetir o ESPAÇO — o preview deve persistir.
-- O build instalado em `/Applications` foi assinado **ad-hoc** apenas para teste.
-  Para uso estável, recompile no Xcode selecionando seu **Personal Team** (Apple
-  ID grátis) em ambos os targets — mesmo bundle id, o LaunchServices apenas
-  atualiza o registro.
-- bgcode/QOI/ZIP64: a lógica é port fiel da referência, mas ainda não exercitada
-  contra fixtures reais (faltam amostras). Fica como verificação futura.
+- ✅ Final visual confirmation (SPACE on a real `.3mf`) done and working.
+- Rigor note: because ThumbHost3mf (a *thumbnail* extension) is installed, for a
+  100% unambiguous proof that the preview comes from this extension (and not an
+  upscale of the thumbnail), temporarily uninstall ThumbHost and repeat SPACE —
+  the preview should persist.
+- bgcode/QOI/ZIP64: the logic is a faithful port of the reference, but not yet
+  exercised against real fixtures (no samples available). Left as future
+  verification.
