@@ -170,4 +170,38 @@ Gatekeeper) exigiria a conta paga de **US$99/ano**. Decisão consciente de
   Oster + MIT do QOI), `.gitignore`.
 - **Passo 3.** Criados `DECISIONS.md` (este arquivo), `README.md` e
   `ARCHITECTURE.md` com o plano. **(commit deste checkpoint)**
-- _(próximos passos serão anexados aqui conforme executados)_
+- **Passo 4.** Implementado o `ThumbnailCore` em Swift puro (`QOIDecoder`,
+  `MiniZip`, `GCode`, `BinaryGCode`, `ThumbnailExtractor`). Validado com `swiftc`
+  contra fixtures gerados (`.3mf` em Deflate e `.gcode` com base64): ambos
+  extraíram o PNG embutido corretamente. **(commit)**
+- **Passo 5.** Criada a extensão `PreviewExtension` (`QLPreviewingController` +
+  `preparePreviewOfFile(at:)` + `NSImageView` `.scaleProportionallyUpOrDown`),
+  o app host SwiftUI `MF3Preview` (com um "Open File…" de teste), os
+  `Info.plist`/entitlements e o `project.yml`. **(commit)**
+- **Passo 6.** `xcodegen generate` + `xcodebuild` (Debug, sem assinatura):
+  **BUILD SUCCEEDED**. O `.appex` é embarcado em `Contents/PlugIns/` e validado;
+  os `Info.plist` processados resolvem o principal class
+  (`PreviewExtension.PreviewViewController`) e os `QLSupportedContentTypes`.
+- **Passo 7.** Build Release com **assinatura ad-hoc** (`-`) só para validação
+  local; entitlements de sandbox aplicados. Instalado em
+  `/Applications/MF3Preview.app` e registrado (`lsregister`/`pluginkit`).
+  `pluginkit -m -p com.apple.quicklook.preview` lista a nossa extensão.
+- **Passo 8.** Validação de integração headless: `mdls` mostra que um `.3mf`
+  resolve para `kMDItemContentType = com.turbozen.3mf` — o mesmo UTI que a
+  extensão declara, então o Quick Look roteará o preview para ela. Observação:
+  `lsregister -dump` revelou que o **ThumbHost3mf já está instalado** nesta
+  máquina (extensão de *thumbnail*), confirmando que os UTIs `com.turbozen.*`
+  são os reais e que as duas extensões coexistem em pontos diferentes.
+  **(commit)**
+
+### Notas de validação / pendências
+
+- A confirmação visual final (apertar **ESPAÇO** num `.3mf` real e ver a imagem)
+  é uma ação de GUI e deve ser feita interativamente — não é observável de forma
+  headless. Todos os pré-requisitos verificáveis por linha de comando passaram.
+- O build instalado em `/Applications` foi assinado **ad-hoc** apenas para teste.
+  Para uso estável, recompile no Xcode selecionando seu **Personal Team** (Apple
+  ID grátis) em ambos os targets — mesmo bundle id, o LaunchServices apenas
+  atualiza o registro.
+- bgcode/QOI/ZIP64: a lógica é port fiel da referência, mas ainda não exercitada
+  contra fixtures reais (faltam amostras). Fica como verificação futura.
